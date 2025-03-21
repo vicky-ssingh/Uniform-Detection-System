@@ -1,0 +1,79 @@
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.card-header {
+    background-color: #000000;
+    color: white;
+    font-weight: 500;
+}
+
+#resultImage {
+    max-height: 300px;
+    object-fit: contain;
+}
+
+.uniform-success {
+    color: #28a745;
+}
+
+.uniform-danger {
+    color: #dc3545;
+}
+
+.progress {
+    height: 25px;
+    border-radius: 5px;
+}
+
+.progress-bar {
+    font-weight: bold;
+}
+
+#actionMessage {
+    font-weight: 500;
+}
+
+#video, #canvas {
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.btn-primary {
+    background-color: #000000;
+    border-color: #000000;
+}
+
+.btn-primary:hover {
+    background-color: #000000;
+    border-color: #000000;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #e0a800;
+}

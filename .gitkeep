@@ -1,0 +1,3 @@
+# Create empty .gitkeep files
+New-Item -Path "static/uploads/.gitkeep" -ItemType File -Force
+New-Item -Path "models/.gitkeep" -ItemType File -Force
