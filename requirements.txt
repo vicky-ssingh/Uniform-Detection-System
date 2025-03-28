@@ -1,13 +1,14 @@
-# Pin specific versions to avoid dependency conflicts
+# Core ML dependencies
 numpy==1.23.5
-tensorflow==2.9.1
+tensorflow==2.12.0
 opencv-python-headless==4.5.5.64
 Pillow==9.1.0
 matplotlib==3.7.1
+scipy==1.10.1
+
+# Web app dependencies
 Flask==2.0.1
 Werkzeug==2.0.1
 gunicorn==23.0.0
-scipy==1.10.1
 
-# Core dependencies without version specification will be ignored
-# since we're pinning specific versions above
+# Remove all other dependencies - they'll be installed as needed
