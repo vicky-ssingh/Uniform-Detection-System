@@ -1,11 +1,10 @@
 import os
-import cv2
+import glob
+import time
+import threading
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
-import time
-import threading
-import glob
 from model import UniformDetectionModel
 
 app = Flask(__name__)
@@ -24,6 +23,9 @@ NON_UNIFORM_DIR = os.path.join(DATASET_DIR, 'Non_Uniform')
 print(f"Dataset directory: {DATASET_DIR}")
 print(f"Uniform directory: {UNIFORM_DIR}")
 print(f"Non-uniform directory: {NON_UNIFORM_DIR}")
+
+# Make sure the model directory exists
+os.makedirs('models', exist_ok=True)
 
 model = UniformDetectionModel(UNIFORM_DIR, NON_UNIFORM_DIR)
 
@@ -62,16 +64,17 @@ def index():
 @app.route('/train_model', methods=['GET'])
 def train_model():
     try:
+        model.prepare_data()
         model.build_model()
-        history = model.train_model(epochs=20)
+        history = model.train_model(epochs=10)  # Reduced epochs for quicker training
         return jsonify({
             'status': 'success',
-            'message': 'Model trained successfully!'
+            'message': 'Model training completed successfully'
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
-            'message': f'Error training model: {str(e)}'
+            'message': f'Error during model training: {str(e)}'
         })
 
 
@@ -80,42 +83,42 @@ def upload_file():
     if 'file' not in request.files:
         return jsonify({
             'status': 'error',
-            'message': 'No file part'
+            'message': 'No file part in the request'
         })
-
+    
     file = request.files['file']
-
+    
     if file.filename == '':
         return jsonify({
             'status': 'error',
-            'message': 'No selected file'
+            'message': 'No file selected'
         })
-
+    
     if file and allowed_file(file.filename):
-        # Create a unique filename
-        filename = secure_filename(f"{int(time.time())}_{file.filename}")
+        filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-
-        # Check if model is loaded, if not, try to load it
-        if model.model is None:
-            if not model.load_trained_model():
-                # If model doesn't exist, train it
-                model.build_model()
-                model.train_model(epochs=20)
-
-        # Make prediction
-        result = model.predict(filepath)
-
-        # Schedule cleanup for this image
-        cleanup_images()
-
-        return jsonify({
-            'status': 'success',
-            'result': result,
-            'image_path': filepath.replace('\\', '/')
-        })
-
+        
+        # Process the image with our model
+        try:
+            result = model.predict(filepath)
+            
+            # Start cleanup of uploaded images after delay
+            cleanup_images()
+            
+            return jsonify({
+                'status': 'success',
+                'filepath': filepath,
+                'prediction': result['prediction'],
+                'confidence': result['confidence'],
+                'message': 'Image uploaded and processed successfully'
+            })
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error processing image: {str(e)}'
+            })
+    
     return jsonify({
         'status': 'error',
         'message': 'File type not allowed'
@@ -124,70 +127,80 @@ def upload_file():
 
 @app.route('/capture', methods=['POST'])
 def capture():
+    # Get the image data from the request
     if 'image' not in request.files:
         return jsonify({
             'status': 'error',
-            'message': 'No image data'
+            'message': 'No image data in the request'
         })
-
+    
     file = request.files['image']
-
+    
     if file.filename == '':
         return jsonify({
             'status': 'error',
-            'message': 'No captured image'
+            'message': 'No image captured'
         })
-
-    # Create a unique filename
-    filename = secure_filename(f"capture_{int(time.time())}.jpg")
+    
+    # Save the captured image
+    filename = f"capture_{int(time.time())}.jpg"
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
-
-    # Check if model is loaded, if not, try to load it
-    if model.model is None:
-        if not model.load_trained_model():
-            # If model doesn't exist, train it
-            model.build_model()
-            model.train_model(epochs=20)
-
-    # Make prediction
-    result = model.predict(filepath)
-
-    # Schedule cleanup for this image
-    cleanup_images()
-
-    return jsonify({
-        'status': 'success',
-        'result': result,
-        'image_path': filepath.replace('\\', '/')
-    })
+    
+    # Process the image with our model
+    try:
+        result = model.predict(filepath)
+        
+        # Start cleanup of captured images after delay
+        cleanup_images()
+        
+        return jsonify({
+            'status': 'success',
+            'filepath': filepath,
+            'prediction': result['prediction'],
+            'confidence': result['confidence'],
+            'message': 'Image captured and processed successfully'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error processing image: {str(e)}'
+        })
 
 
 @app.route('/cleanup', methods=['GET'])
 def manual_cleanup():
-    files = glob.glob(os.path.join(app.config['UPLOAD_FOLDER'], '*'))
-    count = 0
-    for file in files:
-        try:
-            os.remove(file)
-            count += 1
-        except Exception as e:
-            print(f"Error deleting {file}: {e}")
-
-    return jsonify({
-        'status': 'success',
-        'message': f'Cleanup completed: {count} files deleted'
-    })
+    try:
+        files = glob.glob(os.path.join(app.config['UPLOAD_FOLDER'], '*'))
+        count = 0
+        for file in files:
+            try:
+                os.remove(file)
+                count += 1
+            except Exception as e:
+                print(f"Error deleting {file}: {e}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Manual cleanup completed: {count} files deleted'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error during cleanup: {str(e)}'
+        })
 
 
 if __name__ == '__main__':
     # Check if model exists, if not, train it
     if not model.load_trained_model():
-        print("Pre-trained model not found. Training a new model...")
+        print("No trained model found. Training a new model...")
+        model.prepare_data()
         model.build_model()
-        model.train_model(epochs=20)
-        print("Model training completed!")
+        model.train_model()
     else:
-        print("Pre-trained model loaded successfully!")
+        print("Loaded existing trained model.")
 
-    app.run(debug=True)
+    # Get port from environment variable for Render compatibility
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
